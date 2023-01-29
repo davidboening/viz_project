@@ -8,7 +8,8 @@ import torch
 # not implemented modules
 from oracle import grid_interp, point_rasterize
 
-def minmax_scaling(points:torch.Tensor, eps=1e-8) -> torch.tensor:
+
+def minmax_scaling(points: torch.Tensor, eps=1e-8) -> torch.Tensor:
     """Scale all points to be within [0,1]
 
     Parameters
@@ -28,7 +29,7 @@ def minmax_scaling(points:torch.Tensor, eps=1e-8) -> torch.tensor:
     return (points - min) / (max - min)
 
 
-def get_fft_frequencies(grid:Tuple[int, int, int]):
+def get_fft_frequencies(grid: Tuple[int, int, int]) -> torch.Tensor:
     """Returns FFT frequencies for a given grid.
 
     Parameters
@@ -44,14 +45,14 @@ def get_fft_frequencies(grid:Tuple[int, int, int]):
     """
     freqs = []
     for res in grid:
-        freqs.append(torch.fft.fftfreq(res, d=1/res))
+        freqs.append(torch.fft.fftfreq(res, d=1 / res))
     freqs = torch.stack(torch.meshgrid(freqs, indexing="ij"), dim=-1)
     return freqs
 
 
 def get_gaussian_smoothing(
-    input:torch.Tensor, sigma:Number=5, res:Number=None
-):
+    input: torch.Tensor, sigma: Number = 5, res: Number = None
+) -> torch.Tensor:
     """Returns a gaussian smoothing kernel
 
     Parameters
@@ -71,15 +72,16 @@ def get_gaussian_smoothing(
     if res is None:
         res = input.shape[0]
     _vector = torch.sum(input**2, dim=-1)
-    _scalar = -2*(sigma / res)**2
-    return torch.exp(_scalar*_vector)
+    _scalar = -2 * (sigma / res) ** 2
+    return torch.exp(_scalar * _vector)
 
 
 def point_rasterization(
-    points:torch.Tensor, normals:torch.Tensor, grid:Tuple[int,int,int]
-):
-    """Given a sample of points and normals constructs
-    a uniformly sampled grid via trilinear interpolation.
+    points: torch.Tensor, normals: torch.Tensor, grid: Tuple[int, int, int]
+) -> torch.Tensor:
+    """Given a sample of points and corresponding normals constructs
+    a uniformly sampled grid that approximates the vector field of normals.
+    This approximation is built via inverse trilinear interpolation.
 
     Parameters
     ----------
@@ -101,12 +103,13 @@ def point_rasterization(
     return point_rasterize(points, normals, grid)
 
 
-
-def grid_interpolation(grid_of_values:torch.Tensor, points:torch.Tensor):
+def grid_interpolation(
+    grid_of_values: torch.Tensor, points: torch.Tensor
+) -> torch.Tensor:
     """Given a function approximated by a grid of values, sampled uniformly
-    along each dimension (e.g. (32,32,32)), approximate for each point
-    given the value the function assumes in said point, using trilinear
-    interpolation.
+    along each dimension (e.g. (32,32,32)). Approximates, for each point
+    given, the value the function assumes in said point.
+    The approximation is done via trilinear interpolation.
 
     Parameters
     ----------
@@ -124,8 +127,7 @@ def grid_interpolation(grid_of_values:torch.Tensor, points:torch.Tensor):
     return grid_interp(grid_of_values.unsqueeze(-1), points).squeeze(-1)
 
 
-
-def DPSR_forward(self, points:torch.Tensor, normals:torch.Tensor):
+def DPSR_forward(self, points: torch.Tensor, normals: torch.Tensor) -> torch.Tensor:
     """Approximates the indicator function of an oriented point cloud.
     Function is approximated using a finite grid of specified dimension.
 
@@ -147,30 +149,30 @@ def DPSR_forward(self, points:torch.Tensor, normals:torch.Tensor):
     ### points to be in (0,1) given how "\chi' restricted to x=0" is computed
 
     # compute vector v
-    v = point_rasterization(points, normals, self.grid)         # [1, 3, 32, 32, 32]
+    v = point_rasterization(points, normals, self.grid)  # [1, 3, 32, 32, 32]
     # compute vector v^~
-    v_tilde = torch.fft.fftn(v, dim=(2,3,4))
-    v_tilde = v_tilde.permute([0, 2, 3, 4, 1])                  # [1, 32, 32, 32, 3]
+    v_tilde = torch.fft.fftn(v, dim=(2, 3, 4))
+    v_tilde = v_tilde.permute([0, 2, 3, 4, 1])  # [1, 32, 32, 32, 3]
     # compute vector u
-    u = get_fft_frequencies(self.grid).unsqueeze(0)             # [1, 32, 32, 32, 3]
+    u = get_fft_frequencies(self.grid).unsqueeze(0)  # [1, 32, 32, 32, 3]
     # compute vector g^~_{\sigma,r}(u)
-    g = get_gaussian_smoothing(u, self.sigma, self.grid[0])     # [1, 32, 32, 32]
+    g = get_gaussian_smoothing(u, self.sigma, self.grid[0])  # [1, 32, 32, 32]
     # compute scalar -i/2pi
-    _scalar = -1j / (2*torch.pi)
+    _scalar = -1j / (2 * torch.pi)
     # compute vector u @ v^~ / |u|^2
-    _vector = torch.sum(u*v_tilde, dim=-1)      # dot-product   # [1, 32, 32, 32]
-    _vector /= torch.sum(u**2, dim=-1)+self.eps                 # [1, 32, 32, 32]
+    _vector = torch.sum(u * v_tilde, dim=-1)  # dot-product  # [1, 32, 32, 32]
+    _vector /= torch.sum(u**2, dim=-1) + self.eps  # [1, 32, 32, 32]
     # compute vector \chi^~
-    chi_tilde = g * (_scalar * _vector)                         # [1, 32, 32, 32]
+    chi_tilde = g * (_scalar * _vector)  # [1, 32, 32, 32]
     # compute vector \chi'
-    chi_prime = torch.fft.ifftn(chi_tilde, dim=(1,2,3))         # [1, 32, 32, 32]
-    chi_prime = chi_prime.real                  # imag is zero
+    chi_prime = torch.fft.ifftn(chi_tilde, dim=(1, 2, 3))  # [1, 32, 32, 32]
+    chi_prime = chi_prime.real  # imag is zero
 
     # compute vector \chi' restricted to x=c
     chi_c = grid_interpolation(chi_prime, points)
     _vector = chi_prime - torch.mean(chi_c, dim=-1)
     # compute scalar \chi' restricted to x=0
-    chi_0 = _vector[:,0,0,0]
+    chi_0 = _vector[:, 0, 0, 0]
     _scalar = self.m / torch.abs(chi_0)
     # compute vector \chi
     chi = _scalar * _vector
