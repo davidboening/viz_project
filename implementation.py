@@ -6,7 +6,7 @@ from typing import Tuple, Optional
 import torch
 
 
-def minmax_scaling(points: torch.Tensor, eps:float=1e-8) -> torch.Tensor:
+def minmax_scaling(points: torch.Tensor, eps: float = 1e-8) -> torch.Tensor:
     """Scale all points to be within [0,1]
 
     Parameters
@@ -25,7 +25,8 @@ def minmax_scaling(points: torch.Tensor, eps:float=1e-8) -> torch.Tensor:
     max = points.max(axis=1)[0].max() + eps
     return (points - min) / (max - min)
 
-def centerzoom_scaling(points:torch.Tensor, scale:float=1.0) -> torch.Tensor:
+
+def centerzoom_scaling(points: torch.Tensor, scale: float = 1.0) -> torch.Tensor:
     """Center input in origin and shift in [-1,1] * scale.
 
     Parameters
@@ -43,7 +44,7 @@ def centerzoom_scaling(points:torch.Tensor, scale:float=1.0) -> torch.Tensor:
     center = points.mean(axis=1)
     shifted = points - center
     scaleto1 = torch.abs(shifted).max(axis=1)[0].max()
-    zoomed = shifted / (scale*scaleto1)
+    zoomed = shifted / (scale * scaleto1)
     return zoomed
 
 
@@ -129,19 +130,23 @@ def point_rasterization(
 
     # compute neighbor indices
     lower_index = torch.floor(points / voxelsize).int()
-    outliers = torch.cat([
-        torch.argwhere(lower_index > voxelcount - eps),
-        torch.argwhere(lower_index < -eps)
-    ])
+    outliers = torch.cat(
+        [
+            torch.argwhere(lower_index > voxelcount - eps),
+            torch.argwhere(lower_index < -eps),
+        ]
+    )
     if len(outliers) > 0:
         raise ValueError(f"{len(outliers)} points are outside grid limits")
     # lower_index = lower_index.remainder(voxelcount)
-    
+
     upper_index = torch.ceil(points / voxelsize).int()
-    outliers = torch.cat([
-        torch.argwhere(upper_index > voxelcount + 1 - eps),
-        torch.argwhere(upper_index < -eps)
-    ])
+    outliers = torch.cat(
+        [
+            torch.argwhere(upper_index > voxelcount + 1 - eps),
+            torch.argwhere(upper_index < -eps),
+        ]
+    )
     if len(outliers) > 0:
         raise ValueError(f"{len(outliers)} points are outside grid limits")
     upper_index = upper_index.remainder(voxelcount)
@@ -151,11 +156,7 @@ def point_rasterization(
     # all subsets of 2**dim elements
     # e.g. if dim=3 : 000, 001, 010, ..., 110, 111
     combinations = torch.stack(
-        torch.meshgrid(
-            *([torch.tensor([0,1])] * dim), 
-            indexing="ij"
-        ), 
-        dim=-1
+        torch.meshgrid(*([torch.tensor([0, 1])] * dim), indexing="ij"), dim=-1
     ).reshape(2**dim, dim)
 
     # [0,1,..,dim-1] * (2**dim)
@@ -171,11 +172,11 @@ def point_rasterization(
     # selection then selects the diagonal of each:
     # -> (xl, yl, zl), (xl, yl, zu), (xl, yu, zl), ...
     neighbor_index = sample_index[combinations, ..., selection]
-    sample_index = neighbor_index.permute(2, 3, 0, 1) # [batch, npoints, 2**dim, dim]
+    sample_index = neighbor_index.permute(2, 3, 0, 1)  # [batch, npoints, 2**dim, dim]
 
     # similarly we construct the cube coordinates
     lower_coords = lower_index * voxelsize
-    upper_coords = (lower_index+1) * voxelsize
+    upper_coords = (lower_index + 1) * voxelsize
     sample_coords = torch.stack([lower_coords, upper_coords], dim=0)
     # here we invert the order from upper to lower instead
     neighbor_coords = sample_coords[1 - combinations, ..., selection]
@@ -199,13 +200,17 @@ def point_rasterization(
     batch_index = batch_index.unsqueeze(-1).unsqueeze(-1)
     batch_index = batch_index.expand(batchsize, samplesize, 2**dim, featuresize, 1)
     sample_index = sample_index.unsqueeze(-2)
-    sample_index = sample_index.expand(batchsize, samplesize, 2**dim, featuresize, dim)
-    feature_index = feature_index.expand(batchsize, samplesize, 2**dim, featuresize, 1)
+    sample_index = sample_index.expand(
+        batchsize, samplesize, 2**dim, featuresize, dim
+    )
+    feature_index = feature_index.expand(
+        batchsize, samplesize, 2**dim, featuresize, 1
+    )
     # construct final index
     index = torch.cat([batch_index, feature_index, sample_index], dim=-1)
 
     # flatten all dimensions
-    index = index.reshape(-1, dim+2)
+    index = index.reshape(-1, dim + 2)
     field_values = field_values.reshape(-1)
 
     # construct output grid
@@ -254,19 +259,23 @@ def grid_interpolation(
 
     # compute neighbor indices
     lower_index = torch.floor(query_points / voxelsize).int()
-    outliers = torch.cat([
-        torch.argwhere(lower_index > voxelcount - eps),
-        torch.argwhere(lower_index < -eps)
-    ])
+    outliers = torch.cat(
+        [
+            torch.argwhere(lower_index > voxelcount - eps),
+            torch.argwhere(lower_index < -eps),
+        ]
+    )
     if len(outliers) > 0:
         raise ValueError(f"{len(outliers)} points are outside grid limits")
     # lower_index = lower_index.remainder(voxelcount)
-    
+
     upper_index = torch.ceil(query_points / voxelsize).int()
-    outliers = torch.cat([
-        torch.argwhere(upper_index > voxelcount + 1 - eps),
-        torch.argwhere(upper_index < -eps)
-    ])
+    outliers = torch.cat(
+        [
+            torch.argwhere(upper_index > voxelcount + 1 - eps),
+            torch.argwhere(upper_index < -eps),
+        ]
+    )
     if len(outliers) > 0:
         raise ValueError(f"{len(outliers)} points are outside grid limits")
     upper_index = upper_index.fmod(voxelcount)
@@ -276,11 +285,7 @@ def grid_interpolation(
     # all subsets of 2**dim elements
     # e.g. if dim=3 : 000, 001, 010, ..., 110, 111
     combinations = torch.stack(
-        torch.meshgrid(
-            *([torch.tensor([0,1])] * dim), 
-            indexing="ij"
-        ), 
-        dim=-1
+        torch.meshgrid(*([torch.tensor([0, 1])] * dim), indexing="ij"), dim=-1
     ).reshape(2**dim, dim)
 
     # [0,1,..,dim-1] * (2**dim)
@@ -296,11 +301,11 @@ def grid_interpolation(
     # selection then selects the diagonal of each:
     # -> (xl, yl, zl), (xl, yl, zu), (xl, yu, zl), ...
     neighbor_index = sample_index[combinations, ..., selection]
-    sample_index = neighbor_index.permute(2, 3, 0, 1) # [batch, npoints, 2**dim, dim]
+    sample_index = neighbor_index.permute(2, 3, 0, 1)  # [batch, npoints, 2**dim, dim]
 
     # similarly we construct the cube coordinates
     lower_coords = lower_index * voxelsize
-    upper_coords = (lower_index+1) * voxelsize
+    upper_coords = (lower_index + 1) * voxelsize
     sample_coords = torch.stack([lower_coords, upper_coords], dim=0)
     # here we invert the order from upper to lower instead
     neighbor_coords = sample_coords[1 - combinations, ..., selection]
@@ -314,7 +319,7 @@ def grid_interpolation(
     # compute trilinear weights for all 8 (if dim=3) neighbors of each sample as:
     # n0 = |x_{n0} - x|/sx * |y_{n0} - y|/sy * |z_{n0} - z|/sz * (feature_value)
     weights = torch.prod(neighbor_dist, dim=-1, keepdim=False)
-    
+
     # initialize batch and feature indices
     batch_index = torch.arange(batchsize).expand(samplesize, 2**dim, batchsize)
     batch_index = batch_index.permute(2, 0, 1)
@@ -323,10 +328,10 @@ def grid_interpolation(
     # NOTE: if python version is 3.11 or higher this if can be removed and
     # value unpacking in subscripts was added
     if dim == 2:
-        x,y = tuple(sample_index[..., i] for i in range(dim))
+        x, y = tuple(sample_index[..., i] for i in range(dim))
         neighbor_values = field_values[batch_index, x, y]
     elif dim == 3:
-        x,y,z = tuple(sample_index[..., i] for i in range(dim))
+        x, y, z = tuple(sample_index[..., i] for i in range(dim))
         neighbor_values = field_values[batch_index, x, y, z]
     else:
         raise NotImplementedError("dim > 3 until transition to python 3.11")
@@ -379,9 +384,9 @@ def DPSR_forward(self, points: torch.Tensor, normals: torch.Tensor) -> torch.Ten
     chi_prime = chi_prime.real  # imag is zero
 
     # compute vector \chi' restricted to x=c
-    chi_c = grid_interpolation(
-        chi_prime.unsqueeze(-1), points
-    ).squeeze(-1)                                          # [batch, *grid]
+    chi_c = grid_interpolation(chi_prime.unsqueeze(-1), points).squeeze(
+        -1
+    )  # [batch, *grid]
     _vector = chi_prime - torch.mean(chi_c, dim=-1)
     # compute scalar \chi' restricted to x=0
     chi_0 = _vector[:, 0, 0, 0]
