@@ -26,7 +26,7 @@ def minmax_scaling(points: torch.Tensor, eps: float = 1e-8) -> torch.Tensor:
     return (points - min) / (max - min)
 
 
-def centerzoom_scaling(points: torch.Tensor, scale: float = 1.0) -> torch.Tensor:
+def unitsphere_scaling(points: torch.Tensor, scale: float = 1.0) -> torch.Tensor:
     """Center input in origin and shift in [-1,1] * scale.
 
     Parameters
