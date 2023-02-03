@@ -523,6 +523,7 @@ class ShapeAsPoints:
         self.optimizer = optimizer([self._points, self._normals])
 
         self._t = 0
+        self._res = resolution
     
     def step(self, callback: Optional[Callable[[dict], None]] = None):
         """Computes a single step of the optimization method
@@ -571,13 +572,14 @@ class ShapeAsPoints:
         res : Number
             grid resolution
         """
-        self.dpsr = DPSR(
-            grid=torch.tensor([res] * self._points.shape[-1]),
-            sigma=self.dpsr.sigma,
-            m=self.dpsr.m,
-            eps=self.dpsr.eps,
-            device=self._points.device
-        ).to(self._points.device)
+        if self._res != res:
+            self.dpsr = DPSR(
+                grid=torch.tensor([res] * self._points.shape[-1]),
+                sigma=self.dpsr.sigma,
+                m=self.dpsr.m,
+                eps=self.dpsr.eps,
+                device=self._points.device
+            ).to(self._points.device)
 
     def train(self, schema: Sequence[Tuple[int, int]], *, callback: Optional[Callable[[dict], None]] = None):
         """Execute multiple optimization steps following given schema.
