@@ -417,6 +417,7 @@ class MarchingCubes(torch.autograd.Function):
         Tuple[torch.Tensor, torch.Tensor, torch.Tensor]
             vertices, faces, normals
         """
+        # missing batch support
         device = chi.device
         chi_np = chi.squeeze(0).detach().cpu().numpy()
         grid = torch.tensor(chi_np.shape, device=device)
@@ -470,6 +471,7 @@ class ShapeAsPoints:
         *,
         preprocessing: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,
         optimizer: torch.optim.Optimizer = torch.optim.Adam,
+        target_sample: Optional[int] = None,
         resolution: int = 256,
         sigma: Number = 5,
         eps: float = 1e-6,
@@ -491,6 +493,8 @@ class ShapeAsPoints:
             output of this must be within (0,1) along every dimension
         optimizer: torch.optim.Optimizer
             optimizer used for learning, by default torch.optim.Adam
+        target_sample: Optional[int], optional
+            sample size of target during loss, by default None (all points)
         resolution : int, optional
             grid resolution (used in DPSR), by default 256
         sigma : Number, optional
@@ -519,6 +523,7 @@ class ShapeAsPoints:
         self._normals = init_normals.clone().to(device)
         self._normals.requires_grad_(True)
         self._target = target_pointcloud.clone().to(device)
+        self.target_sample = target_sample
         
         self.optimizer = optimizer([self._points, self._normals])
 
@@ -545,9 +550,17 @@ class ShapeAsPoints:
         chi = torch.tanh(chi)
         v,f,n = self.marching_cubes(chi)
 
+        if self.target_sample is not None:
+            # missing batch support
+            # would be better to use a buffer to save permutation result
+            sample_ids = torch.randperm(self._target.size(1))[:self.target_sample]
+            target = self._target[0, sample_ids].unsqueeze(0)
+        else:
+            target = self._target
+
         loss, _ = self.loss(
             minmax_scaling(v),
-            minmax_scaling(self._target),
+            minmax_scaling(target),
         )
 
         loss.backward()
