@@ -2,12 +2,20 @@
 
 Reimplementing [ShapeAsPoints](https://github.com/autonomousvision/shape_as_points) with documentation and examples.
 
-Currently requires (list may be incomplete):
-- `pytorch3d`: mostly for the loss function (pytorch3d.loss.chamfer_distance)
-- `scikit-image`: marching cubes, may later switch to pytorch3d version if normal estimation is decent (and C++ version is fixed)
-- `torch`: backpropagation
-- `meshplot`: simple interactive plots
-- `pandas`: load datasets
+Implementation currently requires:
+- `pytorch3d`: chamfer loss (pytorch3d.loss.chamfer_distance) and initial starting sphere
+- `scikit-image`: marching cubes (pytorch3d version has no normal estimation and C++ (cpu) version is bugged)
+- `torch`: for autograd backpropagation and efficient gpu computation
+Running Notebooks additionally requires (list may be incomplete):
+- `meshplot`: interactive plots
+- `pandas`: to load xyz datasets
+- `ipywidgets` : interactable widgets
+
+The easiest way to install all requirements, albeit no the most efficient, is to run:
+```
+pip install "git+https://github.com/facebookresearch/pytorch3d.git"
+pip install pandas plyfile ipywidgets pythreejs "git+https://github.com/skoch9/meshplot.git"
+```
 
 Usage:
 
@@ -30,3 +38,9 @@ It is also possible to add a callback plot or save records after each epoch. The
 - `chi` indicator grid (a tensor of shape [1, *grid_resolution])
 - `mesh` a triple of vertices, faces, vertex normals
 - `loss` current epoch loss value
+
+Code Structure:
+- Notebook 1 to 3 explain various key aspects of the optimization approach.
+- Notebook 4 shows an example morphing a sphere to a target.
+- implementation contains legacy code for notebook 1 to 3.
+- sap contains the actual implementation code used in notebook 4.
