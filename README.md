@@ -42,5 +42,5 @@ It is also possible to add a callback plot or save records after each epoch. The
 Code Structure:
 - Notebook 1 to 3 explain various key aspects of the optimization approach.
 - Notebook 4 shows an example morphing a sphere to a target.
-- implementation contains legacy code for notebook 1 to 3.
-- sap contains the actual implementation code used in notebook 4.
+- `implementation.py` contains legacy code for notebook 1 to 3.
+- `sap.py` contains the actual implementation code used in notebook 4.
