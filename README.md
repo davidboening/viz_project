@@ -29,4 +29,4 @@ It is also possible to add a callback plot or save records after each epoch. The
 - `epoch` current epoch
 - `chi` indicator grid (a tensor of shape [1, *grid_resolution])
 - `mesh` a triple of vertices, faces, vertex normals
-- `loss` current epoch loss
+- `loss` current epoch loss value
